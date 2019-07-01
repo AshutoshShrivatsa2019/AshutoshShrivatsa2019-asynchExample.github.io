@@ -1,3 +1,4 @@
+/*
 (function(){
 
 
@@ -5,20 +6,20 @@
 var myButton=document.querySelector("button");
 var obj=[];
 
-var outputData={
+var outputData=[{
 	"name":'',
-      	"full_name":'',
-      	"private":'',
+    "full_name":'',
+    "private":'',
 	"owner":{
   		"login":'',
 		"name":'',
-            "followersCount":'',
-            "followingCount":'',
-        },
-       "licenseName":'',
-       "score":'',
-       "numberOfBranch":''
-}
+        "followersCount":'',
+        "followingCount":'',
+    },
+    "licenseName":'',
+    "score":'',
+    "numberOfBranch":''
+}]
 
 
 
@@ -72,8 +73,9 @@ myButton.onclick=function()
 {
     //getData(getValue);
     let call=getValue();
-   var myPromise= getInitialData(call);
 
+   var myPromise= getInitialData(call);
+   console.log("2");
    myPromise.then(resp1=>{
        getOwnerData(resp1);
    })
@@ -81,10 +83,10 @@ myButton.onclick=function()
        console.log(error)
     return Promise.reject("Errorrrrrrr");
     });
-
+    console.log("3");
    myPromise.then(resp2=>{
-    getBranchData(resp2);
-})
+        getBranchData(resp2);
+    })
 .catch(error=>{
     console.log(error)
     return Promise.reject("Errorrrrrrr");
@@ -153,11 +155,12 @@ function writeInitialData(myJSON,call)
 function getInitialData(url)
 {
  
-
+    console.log("1");
     return fetch(url)
     .then((response)=>{
         if(response.ok)
         {
+            console.log("4");
             return response.json()
             .then((myJSON,url)=>{
                return writeInitialData(myJSON,url);
@@ -274,5 +277,193 @@ function writeOwnerData(json)
     outputData.owner.followingCount=json.following;
 }
 
+
+})();
+*/
+
+
+(function () {
+
+    var myButton = document.querySelector("button");
+    
+
+    function getURL() {
+        let url = "https://api.github.com/search/repositories?q=";
+        console.log("in");
+        var inputText = document.getElementById("searchField").value;
+        console.log(inputText);
+        url = url + inputText;
+        console.log(url);
+        return url;
+    }
+
+    myButton.onclick = function () {
+        let url = getURL();
+
+        var intialPromise = getInitialData(url)
+            .then((response) => {
+                if (response.ok) {
+                    return Promise.resolve(response.json());
+                }
+                else {
+                    return Promise.reject(new ResponseError("Authentication error: "));
+                }
+            })
+            .then((response)=>{
+                let url = getURL();
+               var resp=response.items.filter((val)=>val.name===url.split("=")[1].trim());
+               return resp;
+            })
+            .then((resp)=>{
+                Promise.all([getOwnerData(resp), getBranchData(resp)]).then((responses) => { 
+                    console.log(resp);
+                    console.log(responses);
+                   processOutputData(resp,responses);
+                   
+                  })
+                  .catch(error=>{
+                      console.log(error);
+                      return Promise.reject("XXXXXXXXXxx");
+                  });
+            })
+            .catch(error => {
+                console.log(error)
+                return Promise.reject("Errorrrrrrr");
+            });
+
+       
+
+    }
+
+
+    function getInitialData(url) {
+
+        return fetch(url);
+    }
+
+
+    function getOwnerData(json)
+{
+    let ownerURLs=[];
+
+    for (let index = 0; index < json.length; index++) {
+        ownerURLs[index] = json[index].owner.url;
+        
+    }
+    
+
+    let requests=ownerURLs.map((url)=>fetch(url).then(resp=>{return resp.json()}));
+
+    
+
+     return Promise.all(requests);
+    
+
+  
+
+}
+
+
+function getBranchData(json)
+{
+    let branchesURLs=[];
+
+    for (let index = 0; index < json.length; index++) {
+        branchesURLs[index] = json[index].branches_url;
+        
+    }
+   
+    let requests=branchesURLs.map((url)=>fetch(url.split("{")[0].trim()).then(resp=>{return resp.json()}));
+
+    return Promise.all(requests);
+
+    
+}
+
+function processOutputData(outerResp,innerResp)
+{
+
+    console.log(outerResp);
+    console.log(innerResp);
+    var outputData = [];
+    var listObj = {
+        "name": '',
+        "full_name": '',
+        "private": '',
+        "owner": {
+            "login": '',
+            "name": '',
+            "followersCount": '',
+            "followingCount": '',
+        },
+        "licenseName": '',
+        "score": '',
+        "numberOfBranch": ''
+    }
+     
+
+    for (let index = 0; index < outerResp.length; index++) {
+        let element = outerResp[index];
+        listObj = {
+            "name": '',
+            "full_name": '',
+            "private": '',
+            "owner": {
+                "login": '',
+                "name": '',
+                "followersCount": '',
+                "followingCount": '',
+            },
+            "licenseName": '',
+            "score": '',
+            "numberOfBranch": ''
+        }
+       // listObj.owner.login=element[index].login;
+      
+       listObj.name=element.name;
+       listObj.full_name=element.full_name;
+       listObj.private=element.private;
+       listObj.licenseName=element.license;
+       listObj.score= element.score;
+
+        outputData.push(listObj);
+    }
+
+  
+       let  elements = innerResp[0];
+
+        for (let index = 0; index < elements.length; index++) {
+            let element = elements[index];
+
+           // listObj.owner.login=element[index].login;
+           outputData[index].owner.login=element.login;
+           outputData[index].owner.name=element.name;
+           outputData[index].owner.followersCount=element.followers;
+           outputData[index].owner.followingCount=element.following;
+
+         
+        }
+
+        elements = innerResp[1];
+
+        for (let index = 0; index < elements.length; index++) {
+            const element = elements[index];
+
+           
+           outputData[index].numberOfBranch=element.length;
+
+         
+        }
+
+        
+        console.log(JSON.stringify(outputData,null,"\t"))
+
+        $("document").ready(function(){
+            $("pre").text("");
+            $("pre").text(JSON.stringify(outputData,null,"\t"));
+        })
+
+    
+}
 
 })();
